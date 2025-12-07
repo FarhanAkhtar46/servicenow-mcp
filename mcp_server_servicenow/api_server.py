@@ -150,10 +150,59 @@ async def natural_language_search(request: NaturalLanguageSearchRequest):
     Example: "find all incidents about email"
     """
     try:
+        # Check if server is initialized
+        if not server:
+            raise HTTPException(
+                status_code=500, 
+                detail="Server not initialized. Check Azure Application Settings."
+            )
+        
+        # Call the natural language search
         result = await server.natural_language_search(query=request.query)
-        return JSONResponse(content=json.loads(result))
+        
+        # Validate result
+        if not result:
+            raise HTTPException(
+                status_code=500, 
+                detail="Empty response from ServiceNow"
+            )
+        
+        # Parse JSON - handle both string and dict responses
+        if isinstance(result, str):
+            try:
+                result_dict = json.loads(result)
+            except json.JSONDecodeError as e:
+                # Log the actual response for debugging in Azure
+                print(f"JSON Decode Error: {str(e)}")
+                print(f"Result type: {type(result)}")
+                print(f"Result length: {len(result) if result else 0}")
+                print(f"Result preview (first 500 chars): {result[:500] if result else 'None'}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Failed to parse ServiceNow response as JSON: {str(e)}"
+                )
+        elif isinstance(result, dict):
+            result_dict = result
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected response type: {type(result)}"
+            )
+        
+        return JSONResponse(content=result_dict)
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log full error trace for debugging in Azure
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in natural_language_search: {error_trace}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error processing request: {str(e)}"
+        )
 
 @app.post("/api/v1/update/natural-language")
 async def natural_language_update(request: NaturalLanguageUpdateRequest):
@@ -264,6 +313,46 @@ async def list_incidents():
         return JSONResponse(content=json.loads(result))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+    
+@app.get("/api/v1/debug/info")
+async def debug_info():
+    """Debug endpoint to check server status"""
+    try:
+        return {
+            "server_initialized": server is not None,
+            "server_client_initialized": server.client is not None if server else False,
+            "instance_url": os.environ.get("SERVICENOW_INSTANCE_URL", "NOT SET"),
+            "username_set": bool(os.environ.get("SERVICENOW_USERNAME")),
+            "password_set": bool(os.environ.get("SERVICENOW_PASSWORD")),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/v1/debug/test-query")
+async def debug_test_query():
+    """Debug endpoint to test a simple query"""
+    try:
+        if not server:
+            return {"error": "Server not initialized"}
+        
+        # Test with a very simple query
+        result = await server.natural_language_search(query="test")
+        
+        return {
+            "success": True,
+            "result_type": type(result).__name__,
+            "result_length": len(result) if result else 0,
+            "result_preview": result[:200] if result else None,
+            "is_string": isinstance(result, str),
+            "is_dict": isinstance(result, dict),
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
 
 def main():
     """Run the API server"""
