@@ -35,18 +35,18 @@ class TestNLPProcessor:
         """Test parsing natural language update commands"""
         # Test basic update
         record_number, updates = NLPProcessor.parse_update_command(
-            "Update incident INC0010001 saying I'm working on it"
+            "Update incident INC0010004 saying I'm working on it"
         )
-        assert record_number == "INC0010001"
+        assert record_number == "INC0010004"
         assert updates.get("comments") == "I'm working on it"
         assert updates.get("state") == 2  # In Progress
 
         # Test with explicit state change
         record_number, updates = NLPProcessor.parse_update_command(
-            "Close incident INC0010002 with resolution: fixed the issue"
+            "Close incident INC0009005 with resolution: fixed the issue"
         )
-        assert record_number == "INC0010002"
-        assert updates.get("state") == 7  # Closed
+        assert record_number == "INC0009005"
+        assert updates.get("state") == 6  # Closed
         assert updates.get("close_notes") == "fixed the issue"
         assert updates.get("close_code") == "Solved (Permanently)"
 

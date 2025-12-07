@@ -7,9 +7,45 @@ This module provides the command-line interface for the ServiceNow MCP server.
 import argparse
 import os
 import sys
+import asyncio
 from dotenv import load_dotenv
 
 from mcp_server_servicenow.server import ServiceNowMCP, create_basic_auth
+
+async def interactive_mode(server: ServiceNowMCP):
+    """Run the server in interactive mode, accepting natural language queries"""
+    print("ServiceNow MCP Server - Interactive Mode")
+    print("Type your queries or 'quit' to exit")
+    print("-" * 50)
+    
+    while True:
+        try:
+            query = input("\n> ").strip()
+            
+            if not query:
+                continue
+                
+            if query.lower() in ['quit', 'exit', 'q']:
+                print("Goodbye!")
+                break
+            
+            # Determine if it's a search or update command
+            if any(word in query.lower() for word in ['update', 'set', 'close', 'change', 'modify']):
+                # This looks like an update command
+                result = await server.natural_language_update(command=query)
+                print(result)
+            else:
+                # Assume it's a search query
+                result = await server.natural_language_search(query=query)
+                print(result)
+                
+        except KeyboardInterrupt:
+            print("\n\nGoodbye!")
+            break
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+    
+    await server.close()
 
 def main():
     """Run the ServiceNow MCP server from the command line"""
@@ -18,7 +54,7 @@ def main():
     
     parser = argparse.ArgumentParser(description="ServiceNow MCP Server")
     parser.add_argument("--url", help="ServiceNow instance URL", default=os.environ.get("SERVICENOW_INSTANCE_URL"))
-    parser.add_argument("--transport", help="Transport protocol (stdio or sse)", default="stdio", choices=["stdio", "sse"])
+    parser.add_argument("--transport", help="Transport protocol (stdio, sse, or interactive)", default="stdio", choices=["stdio", "sse", "interactive"])
     
     # Authentication options
     auth_group = parser.add_argument_group("Authentication")
@@ -51,9 +87,14 @@ def main():
         print("Either provide username/password, token, or OAuth credentials")
         sys.exit(1)
     
-    # Create and run the server
+    # Create the server
     server = ServiceNowMCP(instance_url=args.url, auth=auth)
-    server.run(transport=args.transport)
+    
+    # Run in interactive mode or server mode
+    if args.transport == "interactive":
+        asyncio.run(interactive_mode(server))
+    else:
+        server.run(transport=args.transport)
 
 if __name__ == "__main__":
     main()
