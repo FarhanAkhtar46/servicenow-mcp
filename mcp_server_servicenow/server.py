@@ -225,9 +225,33 @@ class ServiceNowClient:
                 auth=auth
             )
             response.raise_for_status()
-            return response.json()
+            # Check if response has content before parsing JSON
+            response_text = response.text.strip()
+            
+            
+            if not response_text:
+                logger.warning(f"Empty response body from ServiceNow: {method} {url}")
+                # Return empty result structure consistent with ServiceNow API format
+                return {"result": []}
+            
+            # Try to parse JSON
+            try:
+                return response.json()
+            except ValueError as json_err:
+                # Log the actual response for debugging
+                logger.error(f"JSON decode error from ServiceNow: {str(json_err)}")
+                logger.error(f"Response status: {response.status_code}")
+                logger.error(f"Response headers: {dict(response.headers)}")
+                logger.error(f"Response content (first 500 chars): {response_text[:500]}")
+                # Return empty result structure instead of crashing
+                return {"result": []}
+                
         except httpx.HTTPStatusError as e:
-            logger.error(f"ServiceNow API error: {e.response.text}")
+            error_text = e.response.text if e.response else "No response text"
+            logger.error(f"ServiceNow API HTTP error {e.response.status_code}: {error_text}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in ServiceNow request: {str(e)}")
             raise
             
     async def get_record(self, table: str, sys_id: str) -> Dict[str, Any]:
