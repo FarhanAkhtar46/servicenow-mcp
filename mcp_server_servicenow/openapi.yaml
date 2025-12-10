@@ -1,0 +1,153 @@
+openapi: 3.0.0
+info:
+  title: ServiceNow MCP API
+  description: REST API for ServiceNow MCP Server - Microsoft Copilot Studio Integration
+  version: 1.0.0
+servers:
+  - url: https://servicenow-mcp-api-31b.azurewebsites.net
+    description: Azure App Service Production
+paths:
+  /api/v1/search/natural-language:
+    post:
+      summary: Search records using natural language
+      description: Search for ServiceNow records using natural language queries
+      operationId: naturalLanguageSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: Natural language search query
+                  example: "find all incidents about email"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: array
+                    items:
+                      type: object
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+  /api/v1/update/natural-language:
+    post:
+      summary: Update records using natural language
+      description: Update ServiceNow records using natural language commands
+      operationId: naturalLanguageUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - command
+              properties:
+                command:
+                  type: string
+                  description: Natural language update command
+                  example: "Update incident INC0010001 saying I'm working on it"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Server error
+  /api/v1/incidents/create:
+    post:
+      summary: Create a new incident
+      description: Create a new ServiceNow incident
+      operationId: createIncident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - short_description
+                - description
+              properties:
+                short_description:
+                  type: string
+                  example: "Server outage"
+                description:
+                  type: string
+                  example: "The main server is down"
+                caller_id:
+                  type: string
+                category:
+                  type: string
+                urgency:
+                  type: integer
+                impact:
+                  type: integer
+      responses:
+        '200':
+          description: Successful response
+        '500':
+          description: Server error
+  /api/v1/incidents/{incident_number}:
+    get:
+      summary: Get incident by number
+      description: Retrieve a specific incident by its number
+      operationId: getIncidentByNumber
+      parameters:
+        - name: incident_number
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Incident number (e.g., INC0010001)
+          example: "INC0010001"
+      responses:
+        '200':
+          description: Successful response
+        '500':
+          description: Server error
+  /api/v1/incidents:
+    get:
+      summary: List recent incidents
+      description: Get a list of recent incidents
+      operationId: listIncidents
+      responses:
+        '200':
+          description: Successful response
+        '500':
+          description: Server error
+  /health:
+    get:
+      summary: Health check
+      description: Check if the API is running
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
