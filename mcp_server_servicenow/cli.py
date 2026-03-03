@@ -9,6 +9,7 @@ import os
 import sys
 import asyncio
 from dotenv import load_dotenv
+import json
 
 from mcp_server_servicenow.server import ServiceNowMCP, create_basic_auth
 
@@ -20,30 +21,28 @@ async def interactive_mode(server: ServiceNowMCP):
     
     while True:
         try:
-            query = input("\n> ").strip()
-            
-            if not query:
-                continue
-                
-            if query.lower() in ['quit', 'exit', 'q']:
-                print("Goodbye!")
+            user_input = input("Enter your command: ").strip()
+            if user_input.lower() == "quit":
+                print("Exiting interactive mode.")
                 break
             
-            # Determine if it's a search or update command
-            if any(word in query.lower() for word in ['update', 'set', 'close', 'change', 'modify']):
-                # This looks like an update command
-                result = await server.natural_language_update(command=query)
-                print(result)
-            else:
-                # Assume it's a search query
-                result = await server.natural_language_search(query=query)
-                print(result)
-                
-        except KeyboardInterrupt:
-            print("\n\nGoodbye!")
-            break
+            # Format input as JSON-RPC request
+            jsonrpc_request = {
+                "jsonrpc": "2.0",
+                "method": "natural_language_update",
+                "params": {"command": user_input},
+                "id": 1
+            }
+            
+            # Send the JSON-RPC request
+            result = await server.natural_language_update(**jsonrpc_request["params"])
+            
+            # Print the result
+            print("Response:", json.dumps(result, indent=2))
+        
         except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
+            print(f"Error: {e}")
+            continue
     
     await server.close()
 

@@ -130,12 +130,27 @@ class NLPProcessor:
             else:
                 updates["comments"] = comment_text
         
-        # Extract close notes if closing
+        # Extract close notes and codes if closing/resolving
         if "state" in updates and updates["state"] in [6, 7]:
-            close_match = re.search(r'(?:with resolution|resolution|close note|resolve with)(?:s|)\s*:?\s*(.+?)(?:$|\.(?:\s|$))', command, re.IGNORECASE)
-            if close_match:
-                updates["close_notes"] = close_match.group(1).strip()
+            close_code_match = re.search(
+                r'(?:resolution\s*code|close\s*code|close_code|resolution_code)\s*:?\s*(.+?)(?=\s+and\s+(?:resolution|close)\s*notes?|\s*$|\.|;)',
+                command,
+                re.IGNORECASE
+            )
+            if close_code_match:
+                updates["close_code"] = close_code_match.group(1).strip()
+
+            close_notes_match = re.search(
+                r'(?:resolution\s*notes?|close\s*notes?|close_notes|resolution_notes|close\s*note|resolution\s*note)\s*:?\s*(.+?)(?:$|\.(?:\s|$))',
+                command,
+                re.IGNORECASE
+            )
+            if close_notes_match:
+                updates["close_notes"] = close_notes_match.group(1).strip()
+
+            if "close_notes" in updates and "close_code" not in updates:
                 updates["close_code"] = "Solved (Permanently)"
+# ...existing code...
         
         return record_number, updates
     

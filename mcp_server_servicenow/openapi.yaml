@@ -4,7 +4,7 @@ info:
   description: REST API for ServiceNow MCP Server - Microsoft Copilot Studio Integration
   version: 1.0.0
 servers:
-  - url: https://servicenow-mcp-api-31b.azurewebsites.net
+  - url: https://copilot-snow-mcp-api-feb.azurewebsites.net
     description: Azure App Service Production
 paths:
   /api/v1/search/natural-language:
@@ -63,7 +63,15 @@ paths:
                 command:
                   type: string
                   description: Natural language update command
-                  example: "Update incident INC0010001 saying I'm working on it"
+                  example: 
+                      updateWorkNotes:
+                        summary: Update an incident
+                        value:
+                          command: "Update incident INC0010001 saying I'm working on it"
+                      closeIncident:
+                        summary: Close an incident (requires resolution code and notes)
+                        value:
+                          command: "Close incident INC0010028 with resolution code: Resolved by request and resolution notes: Fixed the issue"
       responses:
         '200':
           description: Successful response
@@ -135,6 +143,86 @@ paths:
           description: Successful response
         '500':
           description: Server error
+
+  # ...existing code...
+  /api/v1/incidents/update:
+    post:
+      summary: Update an existing incident (structured)
+      description: >
+        Update an incident by number. To close an incident, set state=7 and provide
+        close_code and close_notes (these may be mandatory due to ServiceNow Data Policies).
+      operationId: updateIncident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - number
+              properties:
+                number:
+                  type: string
+                  description: Incident number (e.g., INC0010001)
+                  example: INC0010027
+                short_description:
+                  type: string
+                  nullable: true
+                description:
+                  type: string
+                  nullable: true
+                state:
+                  type: integer
+                  format: int32
+                  nullable: true
+                  description: Incident state (e.g., 6=Resolved, 7=Closed)
+                  example: 7
+                work_notes:
+                  type: string
+                  nullable: true
+                comments:
+                  type: string
+                  nullable: true
+                close_code:
+                  type: string
+                  nullable: true
+                  description: Resolution/Close code (ServiceNow may require this when closing)
+                  example: "Resolved by request"
+                close_notes:
+                  type: string
+                  nullable: true
+                  description: Close notes (ServiceNow may require this when closing)
+                  example: "Fixed the issue"
+            examples:
+              addWorkNotes:
+                summary: Add work notes
+                value:
+                  number: "INC0010027"
+                  work_notes: "Investigating the VPN issue."
+              resolveIncident:
+                summary: Resolve an incident (state=6) with close fields
+                value:
+                  number: "INC0010027"
+                  state: 6
+                  close_code: "Resolved by request"
+                  close_notes: "Issue fixed and confirmed with requester."
+              closeIncident:
+                summary: Close an incident (state=7) with resolution code and notes
+                value:
+                  number: "INC0010027"
+                  state: 7
+                  close_code: "Resolved by request"
+                  close_notes: "Fixed the issue."
+      responses:
+        '200':
+          description: Successful response (updated incident record)
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Server error
+# ...existing code...
   /health:
     get:
       summary: Health check
